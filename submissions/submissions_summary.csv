@@ -1,0 +1,11 @@
+Filename,OOF_ROC_AUC,Mean_Pred,Std_Pred,Min_Pred,Max_Pred,Description
+submission_01_lightgbm_tuned.csv,0.9578711145382336,0.44387262953863516,0.42711973741027737,0.008182818432825293,0.9863811701416727,Tuned LightGBM GBDT with optimized leaves and feature subsampling
+submission_02_lightgbm_deep.csv,0.9586773190310214,0.44368478623534713,0.43015604511448124,0.00569526011721802,0.9891076468767839,LightGBM with deep leaves (num_leaves=127) capturing high-order non-linearities
+submission_03_xgboost_tuned.csv,0.9570197587829251,0.4438716434812234,0.424730858091928,0.006770019303075969,0.9942649602890015,Tuned XGBoost with histogram tree method and depth-wise splitting
+submission_04_xgboost_regularized.csv,0.9583124394348894,0.4438010380392889,0.42814957708057955,0.00603633769787848,0.9891029298305511,"XGBoost with conservative learning rate, higher L1/L2 penalties & subsampling"
+submission_05_random_forest_tuned.csv,0.9553211695562115,0.4445171360508978,0.41793080786343795,0.005724759695978641,0.9956291275190632,Tuned Random Forest with bagged tree sub-sampling and leaf regularization
+submission_06_hist_gradient_boosting.csv,0.958312746179823,0.4438795435857971,0.4292828209720847,0.006515515146135158,0.9856516113970338,Scikit-Learn HistGradientBoostingClassifier with native histogram binning
+submission_07_blend_lightgbm_xgboost.csv,0.9576577640505592,0.4438721858127999,0.42584530740629745,0.008295749956031757,0.9899288757079707,Weighted blend of top gradient boosted trees (55% LightGBM + 45% XGBoost)
+submission_08_multi_family_average.csv,0.9576494848757595,0.44403523816413837,0.4241686518880315,0.009864561987042221,0.9843864927737327,Equal uniform average of all 4 distinct model families (LGBM + XGB + RF + HistGB)
+submission_09_rank_averaged_ensemble.csv,0.9583381056771741,0.5000016675337843,0.28479926170943043,0.00010116371624355777,0.9997259686147908,Rank-averaged ensemble of all models (robust against probability calibration skew)
+submission_10_optimal_roc_auc_blend.csv,0.9586786414717591,0.4437866295178072,0.42878474636156044,0.007331800138233252,0.9852053740656259,Directly optimized SLSQP ensemble weights maximizing Out-Of-Fold ROC-AUC score

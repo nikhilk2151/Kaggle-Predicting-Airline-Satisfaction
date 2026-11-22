@@ -1,0 +1,26 @@
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python byte-code and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Large Raw Datasets (Download directly from Kaggle competition)
+train.csv
+test.csv
+sample_submission.csv
+
+# Output submission files (reproducible by running airline_satisfaction_pipeline.py)
+submissions/*.csv
+!submissions/submissions_summary.csv
+
+# OS-specific files
+.DS_Store
+Thumbs.db
