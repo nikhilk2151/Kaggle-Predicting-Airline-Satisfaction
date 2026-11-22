@@ -125,12 +125,21 @@ pip install -r requirements.txt
 Download `train.csv` and `test.csv` from Kaggle and place them in the root directory.
 
 ### 3. Run Pipeline
-```bash
-# Full execution with Stratified 5-Fold CV and hyperparameter search
-python airline_satisfaction_pipeline.py --n_splits 5 --tuning_samples 50000
 
-# Fast run mode using pre-tuned configurations
-python airline_satisfaction_pipeline.py --quick_mode --n_splits 3
+The script is fully optimized for **both Kaggle/Colab Notebooks and Local Environments** (auto-detects `/kaggle/input/playground-series-s6e10/` and `/kaggle/working/submissions`, completely avoiding Jupyter kernel `argparse` errors):
+
+```python
+# In Kaggle / Colab Notebook cell:
+%run airline_satisfaction_pipeline.py
+
+# Or directly in Python:
+from airline_satisfaction_pipeline import main
+main(quick_mode=True, n_splits=3)
+```
+
+Or from terminal:
+```bash
+python airline_satisfaction_pipeline.py
 ```
 
 Generated submissions and the summary report will be saved automatically in the `submissions/` directory.

@@ -12,7 +12,6 @@ Maximizing ROC-AUC with:
 import os
 import sys
 import time
-import argparse
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
@@ -598,64 +597,107 @@ def generate_10_submissions(test_ids, base_test_preds, ensemble_preds, y, base_o
 # ---------------------------------------------------------
 # 7. Main Execution Flow
 # ---------------------------------------------------------
-def main():
-    parser = argparse.ArgumentParser(description="Kaggle Airline Satisfaction Classification Pipeline")
-    parser.add_argument('--train_path', type=str, default='train.csv', help='Path to train.csv')
-    parser.add_argument('--test_path', type=str, default='test.csv', help='Path to test.csv')
-    parser.add_argument('--output_dir', type=str, default='submissions', help='Directory for submission files')
-    parser.add_argument('--tuning_samples', type=int, default=50000, help='Sample size for hyperparameter search')
-    parser.add_argument('--n_splits', type=int, default=5, help='Number of folds for Stratified K-Fold CV')
-    parser.add_argument('--quick_mode', action='store_true', help='Fast mode using default strong parameters')
-    args = parser.parse_args()
-    
+def main(
+    train_path=None,
+    test_path=None,
+    output_dir=None,
+    tuning_samples=50000,
+    n_splits=5,
+    quick_mode=False
+):
+    """
+    Main execution pipeline for Kaggle Airline Passenger Satisfaction.
+    Directly callable and auto-detects Kaggle, Colab, and local filesystem paths.
+    """
+    # 0. Automatically resolve Kaggle vs Local paths
+    if train_path is None:
+        if os.path.exists('/kaggle/input/playground-series-s6e10/train.csv'):
+            train_path = '/kaggle/input/playground-series-s6e10/train.csv'
+        elif os.path.exists('train.csv'):
+            train_path = 'train.csv'
+        else:
+            train_path = '/kaggle/input/playground-series-s6e10/train.csv'
+
+    if test_path is None:
+        if os.path.exists('/kaggle/input/playground-series-s6e10/test.csv'):
+            test_path = '/kaggle/input/playground-series-s6e10/test.csv'
+        elif os.path.exists('test.csv'):
+            test_path = 'test.csv'
+        else:
+            test_path = '/kaggle/input/playground-series-s6e10/test.csv'
+
+    if output_dir is None:
+        if os.path.exists('/kaggle/working'):
+            output_dir = '/kaggle/working/submissions'
+        else:
+            output_dir = 'submissions'
+
     total_start = time.time()
     print("=" * 70)
     print("AIRLINE PASSENGER SATISFACTION: ROC-AUC MAXIMIZATION PIPELINE")
     print("=" * 70)
-    
+    print(f"[*] Train Path:       {train_path}")
+    print(f"[*] Test Path:        {test_path}")
+    print(f"[*] Output Directory: {output_dir}")
+    print(f"[*] Folds (CV):       {n_splits}")
+    print(f"[*] Tuning Samples:   {tuning_samples:,}")
+    print(f"[*] Quick Mode:       {quick_mode}")
+
     # 1. Load Data
-    train_df, test_df = load_data(args.train_path, args.test_path)
+    train_df, test_df = load_data(train_path, test_path)
     test_ids = test_df[ID_COL].values
-    
+
     # 2. Feature Engineering & Preprocessing
     train_df, test_df, feature_cols = engineer_features(train_df, test_df)
-    
+
     X = train_df[feature_cols].values
     y = train_df[TARGET_COL].values
     X_test = test_df[feature_cols].values
-    
+
     # 3. Hyperparameter Tuning
-    if not args.quick_mode:
+    if not quick_mode:
         best_rf_params, best_lgb_params, best_xgb_params = run_hyperparameter_tuning(
-            X, y, sample_size=args.tuning_samples
+            X, y, sample_size=tuning_samples
         )
     else:
         print("[*] Quick mode active: Using pre-tuned optimal parameters...")
         best_rf_params = {'n_estimators': 120, 'max_depth': 18, 'min_samples_split': 12, 'max_samples': 0.35}
         best_lgb_params = {'num_leaves': 63, 'learning_rate': 0.05, 'n_estimators': 350, 'subsample': 0.85, 'colsample_bytree': 0.80, 'min_child_samples': 30}
         best_xgb_params = {'max_depth': 7, 'learning_rate': 0.05, 'n_estimators': 350, 'subsample': 0.85, 'colsample_bytree': 0.80, 'reg_alpha': 0.5, 'reg_lambda': 1.5}
-        
+
     # 4. Stratified Cross-Validation
     oof_preds, test_preds = train_cross_validated_models(
         X, y, X_test,
         best_rf_params, best_lgb_params, best_xgb_params,
-        n_splits=args.n_splits
+        n_splits=n_splits
     )
-    
+
     # 5. Ensembling
     ensembles, oof_ensembles = create_ensembles(oof_preds, test_preds, y)
-    
+
     # 6. Generate 10 Submissions
     summary_df = generate_10_submissions(
         test_ids, test_preds, ensembles, y, oof_preds, oof_ensembles,
-        output_dir=args.output_dir
+        output_dir=output_dir
     )
-    
+
     total_elapsed = time.time() - total_start
     print("\n" + "=" * 70)
     print(f"PIPELINE COMPLETE IN {total_elapsed / 60:.2f} MINUTES")
     print("=" * 70)
     print(summary_df[['Filename', 'OOF_ROC_AUC', 'Description']].to_string(index=False))
+    return summary_df
 
-if __name__ == '__main__':
-    main()
+
+# ---------------------------------------------------------
+# Direct execution (Kaggle / Colab Notebook & Script friendly)
+# Runs immediately without argparse to prevent Jupyter kernel errors
+# ---------------------------------------------------------
+summary_results = main(
+    train_path='/kaggle/input/playground-series-s6e10/train.csv' if os.path.exists('/kaggle/input/playground-series-s6e10/train.csv') else 'train.csv',
+    test_path='/kaggle/input/playground-series-s6e10/test.csv' if os.path.exists('/kaggle/input/playground-series-s6e10/test.csv') else 'test.csv',
+    output_dir='/kaggle/working/submissions' if os.path.exists('/kaggle/working') else 'submissions',
+    tuning_samples=50000,
+    n_splits=5,
+    quick_mode=False
+)
