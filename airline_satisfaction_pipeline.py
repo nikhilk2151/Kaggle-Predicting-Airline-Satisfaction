@@ -486,13 +486,46 @@ def create_ensembles(oof_preds, test_preds, y):
     return ensembles, oof_ensembles
 
 # ---------------------------------------------------------
+# Helper: Path Resolution for Kaggle & Local
+# ---------------------------------------------------------
+def find_data_file(filename):
+    """
+    Resolves data file path across Kaggle competition mounts, Kaggle dataset mounts, and local directory.
+    Prioritizes:
+    1. /kaggle/input/competitions/playground-series-s6e10/{filename}
+    2. /kaggle/input/playground-series-s6e10/{filename}
+    3. ./{filename}
+    """
+    candidates = [
+        f"/kaggle/input/competitions/playground-series-s6e10/{filename}",
+        f"/kaggle/input/playground-series-s6e10/{filename}",
+        filename
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    # Default to user-specified Kaggle competition path
+    return f"/kaggle/input/competitions/playground-series-s6e10/{filename}"
+
+
+# ---------------------------------------------------------
 # 6. Generate 10 Distinct Submission Files
 # ---------------------------------------------------------
-def generate_10_submissions(test_ids, base_test_preds, ensemble_preds, y, base_oof_preds, oof_ensembles, output_dir='submissions'):
+def generate_10_submissions(
+    test_ids,
+    base_test_preds,
+    ensemble_preds,
+    y,
+    base_oof_preds,
+    oof_ensembles,
+    sample_sub_path=None,
+    output_dir='submissions'
+):
     """
     Saves and validates exactly 10 distinct submission files with:
+    - Uses sample_submission.csv template for exact Kaggle formatting if available
     - Required format: 'id', 'satisfaction'
-    - Test IDs matching test.csv in identical sequence
+    - Test IDs matching test.csv and sample_submission.csv in identical sequence
     - Calibrated predicted probabilities between 0.0 and 1.0
     - Verification that no NaNs or formatting errors exist
     """
@@ -501,6 +534,13 @@ def generate_10_submissions(test_ids, base_test_preds, ensemble_preds, y, base_o
     print("=" * 70)
     
     os.makedirs(output_dir, exist_ok=True)
+    
+    template_df = None
+    if sample_sub_path and os.path.exists(sample_sub_path):
+        print(f"[*] Formatting final outputs using template: '{sample_sub_path}'")
+        template_df = pd.read_csv(sample_sub_path)
+    else:
+        print("[*] Formatting outputs using test IDs directly...")
     
     submission_map = {
         'submission_01_lightgbm_tuned.csv': (
@@ -563,10 +603,14 @@ def generate_10_submissions(test_ids, base_test_preds, ensemble_preds, y, base_o
         # Clip probabilities strictly to [0.0, 1.0]
         clean_probs = np.clip(probs, 0.0, 1.0)
         
-        sub_df = pd.DataFrame({
-            ID_COL: test_ids,
-            TARGET_COL: clean_probs
-        })
+        if template_df is not None:
+            sub_df = template_df.copy()
+            sub_df[TARGET_COL] = clean_probs
+        else:
+            sub_df = pd.DataFrame({
+                ID_COL: test_ids,
+                TARGET_COL: clean_probs
+            })
         
         # Strict validation
         assert sub_df.shape[0] == len(test_ids), f"Row mismatch for {filename}"
@@ -600,6 +644,7 @@ def generate_10_submissions(test_ids, base_test_preds, ensemble_preds, y, base_o
 def main(
     train_path=None,
     test_path=None,
+    sample_sub_path=None,
     output_dir=None,
     tuning_samples=50000,
     n_splits=5,
@@ -607,24 +652,20 @@ def main(
 ):
     """
     Main execution pipeline for Kaggle Airline Passenger Satisfaction.
-    Directly callable and auto-detects Kaggle, Colab, and local filesystem paths.
+    Directly callable and auto-detects:
+    - /kaggle/input/competitions/playground-series-s6e10/
+    - /kaggle/input/playground-series-s6e10/
+    - local workspace paths
     """
-    # 0. Automatically resolve Kaggle vs Local paths
+    # 0. Automatically resolve paths across Kaggle and Local environments
     if train_path is None:
-        if os.path.exists('/kaggle/input/playground-series-s6e10/train.csv'):
-            train_path = '/kaggle/input/playground-series-s6e10/train.csv'
-        elif os.path.exists('train.csv'):
-            train_path = 'train.csv'
-        else:
-            train_path = '/kaggle/input/playground-series-s6e10/train.csv'
+        train_path = find_data_file('train.csv')
 
     if test_path is None:
-        if os.path.exists('/kaggle/input/playground-series-s6e10/test.csv'):
-            test_path = '/kaggle/input/playground-series-s6e10/test.csv'
-        elif os.path.exists('test.csv'):
-            test_path = 'test.csv'
-        else:
-            test_path = '/kaggle/input/playground-series-s6e10/test.csv'
+        test_path = find_data_file('test.csv')
+
+    if sample_sub_path is None:
+        sample_sub_path = find_data_file('sample_submission.csv')
 
     if output_dir is None:
         if os.path.exists('/kaggle/working'):
@@ -638,6 +679,7 @@ def main(
     print("=" * 70)
     print(f"[*] Train Path:       {train_path}")
     print(f"[*] Test Path:        {test_path}")
+    print(f"[*] Sample Sub Path:  {sample_sub_path}")
     print(f"[*] Output Directory: {output_dir}")
     print(f"[*] Folds (CV):       {n_splits}")
     print(f"[*] Tuning Samples:   {tuning_samples:,}")
@@ -678,6 +720,7 @@ def main(
     # 6. Generate 10 Submissions
     summary_df = generate_10_submissions(
         test_ids, test_preds, ensembles, y, oof_preds, oof_ensembles,
+        sample_sub_path=sample_sub_path,
         output_dir=output_dir
     )
 
@@ -694,8 +737,9 @@ def main(
 # Runs immediately without argparse to prevent Jupyter kernel errors
 # ---------------------------------------------------------
 summary_results = main(
-    train_path='/kaggle/input/playground-series-s6e10/train.csv' if os.path.exists('/kaggle/input/playground-series-s6e10/train.csv') else 'train.csv',
-    test_path='/kaggle/input/playground-series-s6e10/test.csv' if os.path.exists('/kaggle/input/playground-series-s6e10/test.csv') else 'test.csv',
+    train_path=find_data_file('train.csv'),
+    test_path=find_data_file('test.csv'),
+    sample_sub_path=find_data_file('sample_submission.csv'),
     output_dir='/kaggle/working/submissions' if os.path.exists('/kaggle/working') else 'submissions',
     tuning_samples=50000,
     n_splits=5,

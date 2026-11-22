@@ -126,7 +126,11 @@ Download `train.csv` and `test.csv` from Kaggle and place them in the root direc
 
 ### 3. Run Pipeline
 
-The script is fully optimized for **both Kaggle/Colab Notebooks and Local Environments** (auto-detects `/kaggle/input/playground-series-s6e10/` and `/kaggle/working/submissions`, completely avoiding Jupyter kernel `argparse` errors):
+The script is fully optimized for **Kaggle Competition Environments, Colab Notebooks, and Local Environments**. It automatically detects and formats final outputs using `sample_submission.csv`:
+- Competition Mount: `/kaggle/input/competitions/playground-series-s6e10/`
+- Dataset Mount: `/kaggle/input/playground-series-s6e10/`
+- Output Directory: `/kaggle/working/submissions/` (or `./submissions/` locally)
+- Zero `argparse` conflicts with Jupyter/Colab notebook kernels.
 
 ```python
 # In Kaggle / Colab Notebook cell:
